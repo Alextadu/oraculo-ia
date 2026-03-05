@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import magoVideo from './assets/Mago.mp4';
 
-const apiKey = ""; // Insira a sua chave API do Google Gemini aqui
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 const calculateCombinations = (n, k) => {
   if (k === 0 || n === k) return 1;
