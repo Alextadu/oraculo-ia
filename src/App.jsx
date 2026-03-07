@@ -306,6 +306,7 @@ export default function App() {
       await signInWithPopup(auth, googleProvider);
       showToast('Login com Google realizado com sucesso!');
     } catch (error) {
+      console.error("Erro detalhado do Firebase:", error);
       showToast('Erro ao conectar com Google.');
     }
   };
