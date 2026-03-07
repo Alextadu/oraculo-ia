@@ -12,6 +12,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_MODEL = "gemini-3-flash"; // Atualizado para a versão mais recente (2026)
 
 const calculateCombinations = (n, k) => {
   if (k === 0 || n === k) return 1;
@@ -597,12 +598,16 @@ export default function App() {
       systemInstruction: { parts: [{ text: systemPrompt }] },
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: { type: "OBJECT", properties: { numbers: { type: "ARRAY", items: { type: "INTEGER" } }, message: { type: "STRING" } } }
+        responseSchema: { 
+          type: "OBJECT", 
+          properties: { numbers: { type: "ARRAY", items: { type: "INTEGER" } }, message: { type: "STRING" } },
+          required: ["numbers", "message"]
+        }
       },
     };
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
       const result = await fetchWithRetry(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (result.error) throw new Error(result.error.message || 'Erro na Chave de API.');
 
