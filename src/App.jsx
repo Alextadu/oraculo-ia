@@ -12,7 +12,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-3-flash"; // Atualizado para a versão mais recente (2026)
+const GEMINI_MODEL = "gemini-3-flash-preview"; // Modelo atualizado conforme AI Studio
 
 const calculateCombinations = (n, k) => {
   if (k === 0 || n === k) return 1;
