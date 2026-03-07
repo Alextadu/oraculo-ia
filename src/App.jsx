@@ -3,9 +3,13 @@ import {
   Dices, Sparkles, RefreshCw, TrendingUp, BarChart2,
   CheckCircle, AlertCircle, Copy, PlusCircle, ShieldAlert, AlertTriangle,
   MessageCircle, Wand2, Calculator, Volume2, Zap, Cpu, Database, Lock, Mail,
-  ShoppingCart, X, CreditCard, Gift, Users, BrainCircuit, Save, Bell, Trash2
+  ShoppingCart, X, CreditCard, Gift, Users, BrainCircuit, Save, Bell, Trash2,
+  LogIn, LogOut
 } from 'lucide-react';
 import magoVideo from './assets/Mago.mp4';
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -102,6 +106,23 @@ const LotteryBall = ({ finalNumber, index, revealedIndex, ballStyle, sizeClass, 
   );
 };
 
+// --- CONFIGURAÇÃO DO FIREBASE ---
+// Substitua estas chaves pelas que você pegou no Console do Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyBtOPaju62l_d7e6dJIygbh8gIaYBJm_CY",
+  authDomain: "oraculo-4f853.firebaseapp.com",
+  projectId: "oraculo-4f853",
+  storageBucket: "oraculo-4f853.firebasestorage.app",
+  messagingSenderId: "1047955301409",
+  appId: "1:1047955301409:web:7b0b94d144a0c18068ef60",
+  measurementId: "G-0P6ZC2LR2C"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
 export default function App() {
   const [coins, setCoins] = useState(50); 
   const [showStore, setShowStore] = useState(false);
@@ -131,6 +152,8 @@ export default function App() {
   
   const [emailSent, setEmailSent] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  const [user, setUser] = useState(null);
 
   const [savedGames, setSavedGames] = useState(() => {
     const saved = localStorage.getItem('oraculo_saved_games');
@@ -209,6 +232,42 @@ export default function App() {
     });
   }, []);
 
+  // --- LÓGICA DE AUTENTICAÇÃO E SINCRONIZAÇÃO ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userRef = doc(db, "users", currentUser.uid);
+        const docSnap = await getDoc(userRef);
+        
+        if (docSnap.exists()) {
+          // Utilizador já existe: Carrega dados da nuvem
+          const data = docSnap.data();
+          setCoins(data.coins || 0);
+          setSavedGames(data.savedGames || []);
+        } else {
+          // Novo utilizador: Cria documento inicial com os dados locais atuais
+          await setDoc(userRef, {
+            coins: coins,
+            savedGames: savedGames,
+            email: currentUser.email
+          });
+        }
+
+        // Escuta mudanças em tempo real (Sincronização Nuvem -> App)
+        const unsubDoc = onSnapshot(userRef, (doc) => {
+          if (doc.exists()) {
+            const data = doc.data();
+            setCoins(data.coins);
+            setSavedGames(data.savedGames || []);
+          }
+        });
+        return () => unsubDoc();
+      }
+    });
+    return () => unsubscribe();
+  }, []); // Executa apenas na montagem
+
   // Persistência dos Jogos Salvos
   useEffect(() => {
     localStorage.setItem('oraculo_saved_games', JSON.stringify(savedGames));
@@ -242,6 +301,20 @@ export default function App() {
     return () => clearInterval(timerId);
   }, [promoTimeLeft]);
 
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      showToast('Login com Google realizado com sucesso!');
+    } catch (error) {
+      showToast('Erro ao conectar com Google.');
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    showToast('Desconectado.');
+  };
+
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
@@ -254,18 +327,30 @@ export default function App() {
   };
 
   const handlePurchaseCoins = (amount) => {
-    setCoins(prev => prev + amount);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { coins: coins + amount });
+    } else {
+      setCoins(prev => prev + amount);
+    }
     setShowStore(false);
     showToast(`Compra concluída! +${amount} Moedas adicionadas ao saldo.`);
   };
 
   const handleSimulateReferralSignup = () => {
-    setCoins(prev => prev + 15);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { coins: coins + 15 });
+    } else {
+      setCoins(prev => prev + 15);
+    }
     showToast('Sucesso! Um amigo registrou-se. +15 🪙 creditadas.');
   };
 
   const handleSimulateReferralPurchase = () => {
-    setCoins(prev => prev + 100);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { coins: coins + 100 });
+    } else {
+      setCoins(prev => prev + 100);
+    }
     showToast('Fantástico! O seu amigo comprou moedas. +100 🪙 creditadas.');
   };
 
@@ -419,7 +504,11 @@ export default function App() {
         return;
     }
 
-    setCoins(prev => prev - currentCost);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { coins: coins - currentCost });
+    } else {
+      setCoins(prev => prev - currentCost);
+    }
     setIsGenerating(true);
     setRevealedIndex(-1);
     setEmailSent(false); 
@@ -454,7 +543,11 @@ export default function App() {
     if (!apiKey) return setAiError('Serviço de IA indisponível. É necessária a chave da API do Gemini no código.');
     if (aiPersona === 'mystic' && !userDream.trim()) return setAiError('Descreva um sonho ou intuição para o Oráculo analisar.');
 
-    setCoins(prev => prev - aiCost);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { coins: coins - aiCost });
+    } else {
+      setCoins(prev => prev - aiCost);
+    }
     setIsAiLoading(true);
     setAiError('');
     setRevealedIndex(-1);
@@ -561,12 +654,21 @@ export default function App() {
       lottery: activeLottery,
       lotteryName: lotteriesConfig[activeLottery].name
     };
-    setSavedGames(prev => [newSavedGame, ...prev]);
+    if (user) {
+      updateDoc(doc(db, "users", user.uid), { savedGames: [newSavedGame, ...savedGames] });
+    } else {
+      setSavedGames(prev => [newSavedGame, ...prev]);
+    }
     showToast('Jogo salvo na sua conta com sucesso!');
   };
 
   const handleDeleteGame = (id) => {
-    setSavedGames(prev => prev.filter(g => g.id !== id));
+    if (user) {
+      const newGames = savedGames.filter(g => g.id !== id);
+      updateDoc(doc(db, "users", user.uid), { savedGames: newGames });
+    } else {
+      setSavedGames(prev => prev.filter(g => g.id !== id));
+    }
     showToast('Jogo removido da sua conta.');
   };
 
@@ -904,7 +1006,18 @@ export default function App() {
         </button>
       </div>
 
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 animate-in fade-in slide-in-from-top-4">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 animate-in fade-in slide-in-from-top-4 flex flex-col items-end gap-2">
+        {/* Botão de Login/Logout */}
+        {user ? (
+             <button onClick={handleLogout} className="flex items-center bg-red-900/80 border border-red-500/30 rounded-full px-3 py-1.5 shadow-lg hover:border-red-400 transition-all backdrop-blur-md text-[10px] text-red-200 font-bold uppercase tracking-wider">
+                <LogOut className="w-3 h-3 mr-1.5" /> Sair
+             </button>
+        ) : (
+             <button onClick={handleLogin} className="flex items-center bg-blue-600/90 border border-blue-400/50 rounded-full px-4 py-1.5 shadow-lg hover:bg-blue-500 transition-all backdrop-blur-md text-xs text-white font-bold uppercase tracking-wider">
+                <LogIn className="w-3 h-3 mr-1.5" /> Entrar com Google
+             </button>
+        )}
+
         <button onClick={() => setShowStore(true)} className="flex items-center bg-gray-900/90 border border-amber-500/30 rounded-full pl-4 pr-1.5 py-1.5 shadow-[0_5px_15px_rgba(0,0,0,0.5)] hover:border-amber-400 transition-all group backdrop-blur-md">
             <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mr-2 hidden sm:block">Saldo:</span>
             <span className="text-amber-400 font-black mr-2.5 text-sm sm:text-base drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]">
