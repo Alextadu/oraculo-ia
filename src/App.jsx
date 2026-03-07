@@ -36,9 +36,15 @@ const fetchWithRetry = async (url, options, maxRetries = 5) => {
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, options);
-      if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
+      if (!response.ok) {
+        // Se for erro 404 (Não encontrado) ou 400 (Bad Request), não adianta tentar de novo
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) throw new Error(`Erro na API: ${response.status}`);
+        throw new Error(`Erro na API: ${response.status}`);
+      }
       return await response.json();
     } catch (err) {
+      // Falha imediatamente se for erro 4xx (exceto 429), pois retentar não resolverá
+      if (err.message.includes('Erro na API: 4') && !err.message.includes('429')) throw err;
       if (i === maxRetries - 1) throw err;
       await new Promise(res => setTimeout(res, delay));
       delay *= 2;
