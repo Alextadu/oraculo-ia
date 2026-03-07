@@ -139,7 +139,7 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 export default function App() {
-  const [coins, setCoins] = useState(50); 
+  const [coins, setCoins] = useState(0); 
   const [showStore, setShowStore] = useState(false);
   const [showSavedGames, setShowSavedGames] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
@@ -263,7 +263,7 @@ export default function App() {
         } else {
           // Novo utilizador: Cria documento inicial com os dados locais atuais
           await setDoc(userRef, {
-            coins: coins,
+            coins: coins > 0 ? coins : 50,
             savedGames: savedGames,
             email: currentUser.email
           });
