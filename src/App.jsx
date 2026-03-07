@@ -708,9 +708,31 @@ export default function App() {
 
   const handleSendEmail = async () => {
       setIsSendingEmail(true);
-      await delay(1500); 
+      
+      // Prepara o conteúdo do e-mail
+      const lotteryName = lotteriesConfig[activeLottery].name;
+      const subject = `🔮 Seus Números da Sorte - ${lotteryName}`;
+      let body = `Olá${user?.displayName ? ' ' + user.displayName : ''}!\n\n`;
+      body += `Aqui estão os seus palpites gerados pelo Oráculo da Sorte IA para a ${lotteryName}:\n\n`;
+      
+      generatedGames.forEach((game, index) => {
+          body += `🎟️ Bilhete ${index + 1}: ${game.numbers.map(n => n.toString().padStart(2, '0')).join(' - ')}\n`;
+          if (game.aiMessage) body += `🧠 Conselho: ${game.aiMessage}\n`;
+          body += `-----------------------------------\n`;
+      });
+      
+      body += `\nBoa sorte!\n\nGerado por Oráculo da Sorte IA`;
+
+      await delay(1000); 
+      
+      const emailTo = user ? user.email : '';
+      const mailtoLink = `mailto:${emailTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      window.location.href = mailtoLink;
+
       setIsSendingEmail(false);
       setEmailSent(true);
+      showToast('Cliente de e-mail aberto com seus jogos!');
   };
 
   const hasRealData = realData && realData[activeLottery] !== null;
