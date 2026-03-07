@@ -639,16 +639,19 @@ export default function App() {
   };
 
   const handlePlayAudio = async (text, gameIndex, persona) => {
-    // Usa a síntese de voz nativa do navegador (Mais rápido e sem erros de API)
+    // Cancela qualquer áudio anterior para evitar sobreposição
+    window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'pt-BR';
-    utterance.rate = 1.1;
-    utterance.pitch = persona === 'mystic' ? 0.9 : 1.0;
+    utterance.rate = 1.0; // Velocidade normal para evitar distorções
+    utterance.pitch = 1.0; // Tom natural
     
-    // Tenta encontrar uma voz feminina para o modo místico
+    // Tenta selecionar a melhor voz em Português disponível no sistema
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang.includes('pt') && (v.name.includes('Google') || v.name.includes('Luciana') || v.name.includes('Joana')));
-    if (voice && persona === 'mystic') utterance.voice = voice;
+    const ptVoice = voices.find(v => v.name.includes('Google') && v.lang.includes('pt')) || voices.find(v => v.lang.includes('pt'));
+    
+    if (ptVoice) utterance.voice = ptVoice;
 
     window.speechSynthesis.speak(utterance);
   };
