@@ -585,7 +585,6 @@ export default function App() {
         responseMimeType: "application/json",
         responseSchema: { type: "OBJECT", properties: { numbers: { type: "ARRAY", items: { type: "INTEGER" } }, message: { type: "STRING" } } }
       },
-      model: "gemini-1.5-flash"
     };
 
     try {
@@ -616,37 +615,23 @@ export default function App() {
       } else { throw new Error('Resposta vazia'); }
     } catch(e) {
       console.error("Erro IA:", e);
-      setAiError(`Erro na IA: ${e.message || 'Falha de conexão'}`);
+      setAiError(`Erro na IA (${e.message}). Verifique a Chave API.`);
     } finally { setIsAiLoading(false); }
   };
 
   const handlePlayAudio = async (text, gameIndex, persona) => {
-    if (!apiKey) return alert("Serviço de áudio indisponível. Requer chave API.");
-    if (audioData[gameIndex]) { new Audio(audioData[gameIndex]).play(); return; }
+    // Usa a síntese de voz nativa do navegador (Mais rápido e sem erros de API)
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.1;
+    utterance.pitch = persona === 'mystic' ? 0.9 : 1.0;
+    
+    // Tenta encontrar uma voz feminina para o modo místico
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang.includes('pt') && (v.name.includes('Google') || v.name.includes('Luciana') || v.name.includes('Joana')));
+    if (voice && persona === 'mystic') utterance.voice = voice;
 
-    setIsAudioLoading(true);
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [{ parts: [{ text }] }],
-        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: persona === 'mystic' ? 'Kore' : 'Zephyr' } } } },
-        model: "gemini-2.5-flash-preview-tts"
-      };
-      const response = await fetchWithRetry(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-      if (response.error) throw new Error(response.error.message);
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (base64Audio) {
-          const blob = base64ToWavBlob(base64Audio, 24000); 
-          const objUrl = URL.createObjectURL(blob);
-          setAudioData(prev => ({...prev, [gameIndex]: objUrl}));
-          new Audio(objUrl).play();
-      }
-    } catch (err) { 
-        console.error("Erro Audio:", err);
-        alert("Não foi possível gerar a voz no momento."); 
-    } finally { 
-        setIsAudioLoading(false); 
-    }
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleSaveGame = (game) => {
