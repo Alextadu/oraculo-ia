@@ -37,9 +37,17 @@ const fetchWithRetry = async (url, options, maxRetries = 5) => {
     try {
       const response = await fetch(url, options);
       if (!response.ok) {
-        // Se for erro 404 (Não encontrado) ou 400 (Bad Request), não adianta tentar de novo
-        if (response.status >= 400 && response.status < 500 && response.status !== 429) throw new Error(`Erro na API: ${response.status}`);
-        throw new Error(`Erro na API: ${response.status}`);
+        let errorMsg = `Erro na API: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            if (errorData.error && errorData.error.message) {
+                errorMsg += ` - ${errorData.error.message}`;
+            }
+        } catch (e) { /* ignora erro de parse */ }
+
+        // Se for erro 4xx (exceto 429), não adianta tentar de novo
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) throw new Error(errorMsg);
+        throw new Error(errorMsg);
       }
       return await response.json();
     } catch (err) {
@@ -594,7 +602,7 @@ export default function App() {
     };
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const result = await fetchWithRetry(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (result.error) throw new Error(result.error.message || 'Erro na Chave de API.');
 
