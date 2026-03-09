@@ -249,8 +249,15 @@ export default function App() {
 
   // --- LÓGICA DE AUTENTICAÇÃO E SINCRONIZAÇÃO ---
   useEffect(() => {
+    let unsubDoc = null;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
+      if (unsubDoc) {
+        unsubDoc();
+        unsubDoc = null;
+      }
+
       if (currentUser) {
         const userRef = doc(db, "users", currentUser.uid);
         const docSnap = await getDoc(userRef);
@@ -270,17 +277,29 @@ export default function App() {
         }
 
         // Escuta mudanças em tempo real (Sincronização Nuvem -> App)
-        const unsubDoc = onSnapshot(userRef, (doc) => {
+        unsubDoc = onSnapshot(userRef, (doc) => {
           if (doc.exists()) {
             const data = doc.data();
             setCoins(data.coins);
             setSavedGames(data.savedGames || []);
           }
         });
-        return () => unsubDoc();
+      } else {
+        // Logout: limpa saldo/dados do usuário autenticado para não reutilizar moedas em cache
+        const localGames = localStorage.getItem('oraculo_saved_games');
+        setCoins(0);
+        setSavedGames(localGames ? JSON.parse(localGames) : []);
+        setGeneratedGames([]);
+        setAudioData({});
+        setAiError('');
+        setRevealedIndex(-1);
+        setEmailSent(false);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      if (unsubDoc) unsubDoc();
+      unsubscribe();
+    };
   }, []); // Executa apenas na montagem
 
   // Persistência dos Jogos Salvos
@@ -316,7 +335,7 @@ export default function App() {
     const externalRef = query.get('external_reference');
     const paymentId = query.get('payment_id');
 
-    if (status === 'approved' && externalRef && paymentId) {
+    if (status === 'approved' && externalRef && paymentId && user) {
        // Evita processar o mesmo pagamento múltiplas vezes na sessão
        const processedKey = `mp_processed_${paymentId}`;
        if (sessionStorage.getItem(processedKey)) return;
@@ -355,6 +374,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    setCoins(0);
     showToast('Desconectado.');
   };
 
