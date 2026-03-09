@@ -3,13 +3,13 @@ import {
   Dices, Sparkles, RefreshCw, TrendingUp, BarChart2,
   CheckCircle, AlertCircle, Copy, PlusCircle, ShieldAlert, AlertTriangle,
   MessageCircle, Wand2, Calculator, Volume2, Zap, Cpu, Database, Lock, Mail,
-  ShoppingCart, X, CreditCard, Gift, Users, BrainCircuit, Save, Bell, Trash2,
+  ShoppingCart, X, CreditCard, Gift, Users, BrainCircuit, Save, Bell, Trash2, Share2,
   LogIn, LogOut
 } from 'lucide-react';
 import magoVideo from './assets/Mago.mp4';
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, increment } from "firebase/firestore";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODEL = "gemini-3-flash-preview"; // Modelo atualizado conforme AI Studio
@@ -308,6 +308,33 @@ export default function App() {
     document.getElementsByTagName('head')[0].appendChild(link);
   }, []);
 
+  // --- INTEGRAÇÃO MERCADO PAGO ---
+  // Verifica se o usuário retornou de um pagamento aprovado
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const status = query.get('status') || query.get('collection_status');
+    const externalRef = query.get('external_reference');
+    const paymentId = query.get('payment_id');
+
+    if (status === 'approved' && externalRef && paymentId) {
+       // Evita processar o mesmo pagamento múltiplas vezes na sessão
+       const processedKey = `mp_processed_${paymentId}`;
+       if (sessionStorage.getItem(processedKey)) return;
+
+       const amount = parseInt(externalRef);
+       if (!isNaN(amount)) {
+          sessionStorage.setItem(processedKey, 'true');
+          
+          // Aguarda um momento para garantir que o user esteja carregado
+          setTimeout(() => {
+             handlePurchaseCoins(amount, true); // true = crédito do sistema
+             // Limpa a URL para remover os parâmetros do Mercado Pago
+             window.history.replaceState({}, document.title, window.location.pathname);
+          }, 1500);
+       }
+    }
+  }, [user]); // Depende do user para creditar na conta correta
+
   useEffect(() => {
     if (promoTimeLeft <= 0) return;
     const timerId = setInterval(() => {
@@ -342,14 +369,31 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 3500);
   };
 
-  const handlePurchaseCoins = (amount) => {
+  const handlePurchaseCoins = (amount, isSystemCredit = false) => {
+    // LINKS DE PAGAMENTO MERCADO PAGO
+    // Crie os links no painel do MP e coloque a quantidade de moedas (100, 500, 2000) no campo "Referência Externa"
+    const paymentLinks = {
+        100: "SEU_LINK_MP_100_MOEDAS", // Ex: https://mpago.la/1xyz
+        500: "SEU_LINK_MP_500_MOEDAS",
+        2000: "SEU_LINK_MP_2000_MOEDAS"
+    };
+
+    // Se NÃO for um crédito automático do sistema e tiver link configurado, redireciona para o pagamento
+    if (!isSystemCredit && paymentLinks[amount] && paymentLinks[amount].startsWith('http')) {
+        window.location.href = paymentLinks[amount];
+        return;
+    }
+
+    // Lógica de Crédito (Executa no retorno do pagamento ou em modo de teste)
     if (user) {
-      updateDoc(doc(db, "users", user.uid), { coins: coins + amount });
+      // Usa increment para evitar condição de corrida ao atualizar saldo
+      updateDoc(doc(db, "users", user.uid), { coins: increment(amount) });
     } else {
       setCoins(prev => prev + amount);
     }
     setShowStore(false);
     showToast(`Compra concluída! +${amount} Moedas adicionadas ao saldo.`);
+    if (isSystemCredit) showToast(`Pagamento Aprovado! +${amount} Moedas creditadas.`);
   };
 
   const handleSimulateReferralSignup = () => {
@@ -704,6 +748,17 @@ export default function App() {
       navigator.clipboard.writeText(gameNumbers.map(n => n.toString().padStart(2, '0')).join(' - '));
       showToast('Números copiados!');
     } catch(e) { }
+  };
+
+  const handleShareWhatsApp = (gameObj, gameIndex) => {
+    const lotteryName = lotteriesConfig[activeLottery].name;
+    const numbers = gameObj.numbers.map(n => n.toString().padStart(2, '0')).join(' - ');
+    let message = `🔮 Oráculo da Sorte IA\n🎟️ Bilhete ${gameIndex + 1} - ${lotteryName}\nNúmeros: ${numbers}`;
+    if (gameObj.aiMessage) message += `\n🧠 Conselho: ${gameObj.aiMessage}`;
+    message += '\n\nBoa sorte!';
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleSendEmail = async () => {
@@ -1346,15 +1401,17 @@ export default function App() {
                               </div>
                               
                               {isGameFullyRevealed && (
-                                <button onClick={() => copyToClipboard(game)} className="p-2 text-gray-500 hover:text-white bg-gray-800/50 hover:bg-gray-700 rounded-lg transition-colors animate-in fade-in duration-300 shrink-0" title="Copiar">
-                                    <Copy className="w-4 h-4" />
-                                </button>
-                              )}
-                              
-                              {isGameFullyRevealed && (
-                                <button onClick={() => handleSaveGame(gameObj)} className="p-2 text-gray-500 hover:text-emerald-400 bg-gray-800/50 hover:bg-gray-700 rounded-lg transition-colors animate-in fade-in duration-300 shrink-0 ml-2" title="Salvar na Conta">
-                                    <Save className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button onClick={() => copyToClipboard(game)} className="p-2 text-gray-500 hover:text-white bg-gray-800/50 hover:bg-gray-700 rounded-lg transition-colors animate-in fade-in duration-300" title="Copiar">
+                                      <Copy className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => handleShareWhatsApp(gameObj, gameIndex)} className="p-2 text-gray-500 hover:text-green-400 bg-gray-800/50 hover:bg-gray-700 rounded-lg transition-colors animate-in fade-in duration-300" title="Compartilhar no WhatsApp">
+                                      <Share2 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => handleSaveGame(gameObj)} className="p-2 text-gray-500 hover:text-emerald-400 bg-gray-800/50 hover:bg-gray-700 rounded-lg transition-colors animate-in fade-in duration-300" title="Salvar na Conta">
+                                      <Save className="w-4 h-4" />
+                                  </button>
+                                </div>
                               )}
                           </div>
 
