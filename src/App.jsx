@@ -393,9 +393,9 @@ export default function App() {
     // LINKS DE PAGAMENTO MERCADO PAGO
     // Crie os links no painel do MP e coloque a quantidade de moedas (100, 500, 2000) no campo "Referência Externa"
     const paymentLinks = {
-        100: "SEU_LINK_MP_100_MOEDAS", // Ex: https://mpago.la/1xyz
-        500: "SEU_LINK_MP_500_MOEDAS",
-        2000: "SEU_LINK_MP_2000_MOEDAS"
+        100: "https://mpago.la/2QE6eyu", // Ex: https://mpago.la/1xyz
+        500: "https://mpago.la/2rf8XwQ",
+        2000: "https://mpago.la/1gsUMu9"
     };
 
     // Se NÃO for um crédito automático do sistema e tiver link configurado, redireciona para o pagamento
