@@ -169,6 +169,7 @@ export default function App() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const [user, setUser] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   const [savedGames, setSavedGames] = useState(() => {
     const saved = localStorage.getItem('oraculo_saved_games');
@@ -257,6 +258,8 @@ export default function App() {
         unsubDoc();
         unsubDoc = null;
       }
+      
+      setIsAuthReady(true); // Marca que a verificação de autenticação terminou
 
       if (currentUser) {
         const userRef = doc(db, "users", currentUser.uid);
@@ -335,7 +338,10 @@ export default function App() {
     const externalRef = query.get('external_reference');
     const paymentId = query.get('payment_id');
 
-    if (status === 'approved' && externalRef && paymentId && user) {
+    // Aguarda o Firebase confirmar se o usuário está logado ou não antes de processar
+    if (!isAuthReady) return;
+
+    if ((status === 'approved' || status === 'collection_status=approved') && paymentId) {
        // Evita processar o mesmo pagamento múltiplas vezes na sessão
        const processedKey = `mp_processed_${paymentId}`;
        if (sessionStorage.getItem(processedKey)) return;
@@ -349,10 +355,16 @@ export default function App() {
              handlePurchaseCoins(amount, true); // true = crédito do sistema
              // Limpa a URL para remover os parâmetros do Mercado Pago
              window.history.replaceState({}, document.title, window.location.pathname);
-          }, 1500);
+          }, 1000);
+       } else {
+          // Se chegou aqui, o pagamento foi aprovado mas a "Referência Externa" não veio configurada
+          console.warn("Pagamento aprovado, mas sem Referência Externa (quantidade de moedas).");
+          if (!sessionStorage.getItem(processedKey)) {
+             showToast('Erro na config do Mercado Pago: "Referência Externa" ausente.');
+          }
        }
     }
-  }, [user]); // Depende do user para creditar na conta correta
+  }, [user, isAuthReady]); // Executa quando o status de autenticação estiver pronto
 
   useEffect(() => {
     if (promoTimeLeft <= 0) return;
