@@ -341,17 +341,19 @@ export default function App() {
     // Aguarda o Firebase confirmar se o usuário está logado ou não antes de processar
     if (!isAuthReady) return;
 
-    if ((status === 'approved' || status === 'collection_status=approved') && paymentId) {
+    // Verifica status de aprovação de forma mais abrangente
+    if ((status === 'approved' || query.get('collection_status') === 'approved') && paymentId) {
        // Evita processar o mesmo pagamento múltiplas vezes na sessão
        const processedKey = `mp_processed_${paymentId}`;
        if (sessionStorage.getItem(processedKey)) return;
 
        const amount = parseInt(externalRef);
-       if (!isNaN(amount)) {
+       if (!isNaN(amount) && amount > 0) {
           sessionStorage.setItem(processedKey, 'true');
           
           // Aguarda um momento para garantir que o user esteja carregado
           setTimeout(() => {
+             console.log(`Processando pagamento ${paymentId}: +${amount} moedas.`);
              handlePurchaseCoins(amount, true); // true = crédito do sistema
              // Limpa a URL para remover os parâmetros do Mercado Pago
              window.history.replaceState({}, document.title, window.location.pathname);
@@ -401,7 +403,7 @@ export default function App() {
     setTimeout(() => setToastMsg(''), 3500);
   };
 
-  const handlePurchaseCoins = (amount, isSystemCredit = false) => {
+  const handlePurchaseCoins = async (amount, isSystemCredit = false) => {
     // LINKS DE PAGAMENTO MERCADO PAGO
     // Crie os links no painel do MP e coloque a quantidade de moedas (100, 500, 2000) no campo "Referência Externa"
     const paymentLinks = {
@@ -418,19 +420,25 @@ export default function App() {
 
     // Lógica de Crédito (Executa no retorno do pagamento ou em modo de teste)
     if (user) {
-      const newTransaction = {
-        id: `tx_${Date.now()}`,
-        date: new Date().toLocaleString('pt-BR'),
-        amount: amount,
-        type: isSystemCredit ? 'CREDITO_AUTOMATICO' : 'COMPRA_MERCADOPAGO',
-        description: `Adicionado ${amount} moedas`
-      };
+      try {
+        const newTransaction = {
+          id: `tx_${Date.now()}`,
+          date: new Date().toLocaleString('pt-BR'),
+          amount: amount,
+          type: isSystemCredit ? 'CREDITO_AUTOMATICO' : 'COMPRA_MERCADOPAGO',
+          description: `Adicionado ${amount} moedas`
+        };
 
-      // Atualiza o saldo e adiciona o registro ao histórico simultaneamente
-      updateDoc(doc(db, "users", user.uid), { 
-        coins: increment(amount),
-        history: arrayUnion(newTransaction)
-      });
+        // Atualiza o saldo e adiciona o registro ao histórico simultaneamente
+        await updateDoc(doc(db, "users", user.uid), { 
+          coins: increment(amount),
+          history: arrayUnion(newTransaction)
+        });
+      } catch (error) {
+        console.error("Erro ao creditar moedas:", error);
+        showToast('Erro ao salvar moedas. Contacte o suporte.');
+        return;
+      }
     } else {
       setCoins(prev => prev + amount);
     }
