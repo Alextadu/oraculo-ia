@@ -9,7 +9,7 @@ import {
 import magoVideo from './assets/Mago.mp4';
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, increment } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, increment, arrayUnion } from "firebase/firestore";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_MODEL = "gemini-3-flash-preview"; // Modelo atualizado conforme AI Studio
@@ -418,8 +418,19 @@ export default function App() {
 
     // Lógica de Crédito (Executa no retorno do pagamento ou em modo de teste)
     if (user) {
-      // Usa increment para evitar condição de corrida ao atualizar saldo
-      updateDoc(doc(db, "users", user.uid), { coins: increment(amount) });
+      const newTransaction = {
+        id: `tx_${Date.now()}`,
+        date: new Date().toLocaleString('pt-BR'),
+        amount: amount,
+        type: isSystemCredit ? 'CREDITO_AUTOMATICO' : 'COMPRA_MERCADOPAGO',
+        description: `Adicionado ${amount} moedas`
+      };
+
+      // Atualiza o saldo e adiciona o registro ao histórico simultaneamente
+      updateDoc(doc(db, "users", user.uid), { 
+        coins: increment(amount),
+        history: arrayUnion(newTransaction)
+      });
     } else {
       setCoins(prev => prev + amount);
     }
