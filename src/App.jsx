@@ -347,6 +347,9 @@ export default function App() {
        const processedKey = `mp_processed_${paymentId}`;
        if (sessionStorage.getItem(processedKey)) return;
 
+       // FEEDBACK IMEDIATO: Mostra mensagem visual assim que detecta o retorno na URL correta
+       setToastMsg('🔄 Confirmando pagamento junto ao banco...');
+
        const amount = parseInt(externalRef);
        if (!isNaN(amount) && amount > 0) {
           sessionStorage.setItem(processedKey, 'true');
