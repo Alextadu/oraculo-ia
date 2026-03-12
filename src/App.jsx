@@ -138,6 +138,24 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
+// --- COMPONENTE DO BOTÃO MERCADO PAGO (SCRIPT) ---
+const MercadoPagoButton = ({ preferenceId }) => {
+  useEffect(() => {
+    const container = document.getElementById(`mp-button-${preferenceId}`);
+    if (container) container.innerHTML = ''; // Limpa antes de renderizar para evitar duplicatas
+
+    const script = document.createElement('script');
+    script.src = 'https://www.mercadopago.com.br/integrations/v1/web-payment-checkout.js';
+    script.setAttribute('data-preference-id', preferenceId);
+    script.setAttribute('data-source', 'button');
+    
+    if (container) container.appendChild(script);
+    return () => { if (container) container.innerHTML = ''; };
+  }, [preferenceId]);
+
+  return <div id={`mp-button-${preferenceId}`} className="mp-button-container transform scale-90 origin-right"></div>;
+};
+
 export default function App() {
   const [coins, setCoins] = useState(0); 
   const [showStore, setShowStore] = useState(false);
@@ -419,6 +437,12 @@ export default function App() {
         100: "https://mpago.la/2RADBYp",
         500: "https://mpago.la/2rf8XwQ",
         2000: "https://mpago.la/1gsUMu9"
+    };
+
+    // IDs de Preferência para o Botão Script (Checkout Pro)
+    // Para funcionar, CADA pacote precisa de um ID diferente gerado no Mercado Pago
+    const preferenceIds = {
+        100: "26019061-1bee6a47-21e1-4ecc-ae20-b9ed8f07b165", // ID que você forneceu
     };
 
     if (!isSystemCredit && !user) {
