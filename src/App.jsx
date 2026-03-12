@@ -336,10 +336,13 @@ export default function App() {
     const query = new URLSearchParams(window.location.search);
     const status = query.get('status') || query.get('collection_status');
     const externalRef = query.get('external_reference');
-    const paymentId = query.get('payment_id');
+    const paymentId = query.get('payment_id') || query.get('collection_id');
 
     // Aguarda o Firebase confirmar se o usuário está logado ou não antes de processar
     if (!isAuthReady) return;
+
+    // Processa apenas quando o utilizador já está autenticado
+    if (!user) return;
 
     // Verifica status de aprovação de forma mais abrangente
     if ((status === 'approved' || query.get('collection_status') === 'approved') && paymentId) {
@@ -350,7 +353,8 @@ export default function App() {
        // FEEDBACK IMEDIATO: Mostra mensagem visual assim que detecta o retorno na URL correta
        setToastMsg('🔄 Confirmando pagamento junto ao banco...');
 
-       const amount = parseInt(externalRef);
+       const pendingAmount = Number(sessionStorage.getItem('mp_pending_amount') || 0);
+       const amount = parseInt(externalRef || pendingAmount, 10);
        if (!isNaN(amount) && amount > 0) {
           sessionStorage.setItem(processedKey, 'true');
           
@@ -358,6 +362,7 @@ export default function App() {
           setTimeout(() => {
              console.log(`Processando pagamento ${paymentId}: +${amount} moedas.`);
              handlePurchaseCoins(amount, true); // true = crédito do sistema
+             sessionStorage.removeItem('mp_pending_amount');
              // Limpa a URL para remover os parâmetros do Mercado Pago
              window.history.replaceState({}, document.title, window.location.pathname);
           }, 1000);
@@ -416,8 +421,15 @@ export default function App() {
         2000: "https://mpago.la/1gsUMu9"
     };
 
+    if (!isSystemCredit && !user) {
+      showToast('Faça login com Google para comprar e receber moedas na sua conta.');
+      return;
+    }
+
     // Se NÃO for um crédito automático do sistema e tiver link configurado, redireciona para o pagamento
     if (!isSystemCredit && paymentLinks[amount] && paymentLinks[amount].startsWith('http')) {
+        // Fallback para casos em que o Mercado Pago não devolve external_reference na URL de retorno
+        sessionStorage.setItem('mp_pending_amount', String(amount));
         window.location.href = paymentLinks[amount];
         return;
     }
