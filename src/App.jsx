@@ -411,7 +411,7 @@ export default function App() {
     // Crie os links no painel do MP e coloque a quantidade de moedas (100, 500, 2000) no campo "Referência Externa"
     const paymentLinks = {
         // ATENÇÃO: Se gerou novos links no Mercado Pago após configurar o redirecionamento, cole-os abaixo:
-        100: "https://mpago.la/2QE6eyu", 
+        100: "https://mpago.la/2RADBYp
         500: "https://mpago.la/2rf8XwQ",
         2000: "https://mpago.la/1gsUMu9"
     };
