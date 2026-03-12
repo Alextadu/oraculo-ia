@@ -470,10 +470,10 @@ export default function App() {
 
   const handleCopyReferralLink = () => {
     try {
-      navigator.clipboard.writeText('https://oraculopro.app/convite/vip-5991x');
+      navigator.clipboard.writeText('https://oraculo-ia-sable.vercel.app/convite/vip-5991x');
       showToast('Link de indicação copiado para a área de transferência!');
     } catch(e) {
-      showToast('Link: https://oraculopro.app/convite/vip-5991x');
+      showToast('Link: https://oraculo-ia-sable.vercel.app/convite/vip-5991x');
     }
   };
 
@@ -961,7 +961,7 @@ export default function App() {
                     <div>
                         <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2 block">O Seu Link Exclusivo</label>
                         <div className="flex shadow-inner">
-                            <input type="text" readOnly value="https://oraculopro.app/convite/vip-5991x" className="w-full bg-gray-950 border border-gray-700 rounded-l-xl p-3 text-sm font-medium text-gray-300 outline-none" />
+                            <input type="text" readOnly value="https://oraculo-ia-sable.vercel.app/convite/vip-5991x" className="w-full bg-gray-950 border border-gray-700 rounded-l-xl p-3 text-sm font-medium text-gray-300 outline-none" />
                             <button onClick={handleCopyReferralLink} className="bg-purple-600 hover:bg-purple-500 text-white px-5 rounded-r-xl transition-colors flex items-center justify-center font-bold">
                                 <Copy className="w-4 h-4 mr-2" /> Copiar
                             </button>
